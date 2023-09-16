@@ -140,32 +140,32 @@ class clone():
 		self.writer     = None
 
 	async def connect(self):
-		if connect_delay:
-			await asyncio.sleep(random.randint(300,900))
 		while True:
-			if self.proxy:
-				options = {
-					'proxy'      : aiosocks.Socks5Addr(self.proxy.split(':')[0], int(self.proxy.split(':')[1])),
-					'proxy_auth' : None,
-					'dst'        : (self.server['server'], self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667),
-					'limit'      : 1024,
-					'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
-					'family'     : 2
-				}
-				self.reader, self.writer = await asyncio.wait_for(aiosocks.open_connection(**options), 15)
-			else:
-				options = {
-					'host'       : self.server['server'],
-					'port'       : self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667,
-					'limit'      : 1024,
-					'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
-					'family'     : socket.AF_INET6 if self.use_ipv6 else socket.AF_INET,
-					'local_addr' : (self.vhost, random.randint(5000,60000)) if self.vhost else None
-				}
 			try:
-				self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(**options), 15)
-				await self.raw(f'USER {rndnick()} 0 * :{rndnick()}')
-				await self.raw('NICK ' + self.nickname)
+				if connect_delay:
+					await asyncio.sleep(random.randint(300,900))
+				if self.proxy:
+					options = {
+						'proxy'      : aiosocks.Socks5Addr(self.proxy.split(':')[0], int(self.proxy.split(':')[1])),
+						'proxy_auth' : None,
+						'dst'        : (self.server['server'], self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667),
+						'limit'      : 1024,
+						'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
+						'family'     : 2
+					}
+					self.reader, self.writer = await asyncio.wait_for(aiosocks.open_connection(**options), 15)
+				else:
+					options = {
+						'host'       : self.server['server'],
+						'port'       : self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667,
+						'limit'      : 1024,
+						'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
+						'family'     : socket.AF_INET6 if self.use_ipv6 else socket.AF_INET,
+						'local_addr' : (self.vhost, random.randint(5000,60000)) if self.vhost else None
+					}
+					self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(**options), 15)
+					await self.raw(f'USER {rndnick()} 0 * :{rndnick()}')
+					await self.raw('NICK ' + self.nickname)
 			except Exception as ex:
 				v6 = 'using IPv6 ' if self.use_ipv6 else ''
 				if self.ssl_status and self.server['ssl']:
@@ -177,7 +177,6 @@ class clone():
 					error('Failed to connect to \'{0}\' IRC server {1}'.format(self.server['server'], v6), ex)
 			else:
 				await self.listen()
-				self.loop.cancel()
 			finally:
 				await asyncio.sleep(86400+random.randint(1800,3600))
 
@@ -396,6 +395,10 @@ class clone():
 				pass
 			except Exception as ex:
 				error('Unexpected error occured on \'{0}\' server.'.format(self.server['server']), ex)
+				try:
+					self.loop.cancel()
+				except:
+					pass
 				break
 
 	async def mode(self, target, mode):

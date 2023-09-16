@@ -14,7 +14,7 @@ Any server with SSL/TLS ports opened, will be connected using SSL/TLS. If using 
 
 The bot is designed to be very minimal, secure, & trustless by nature. This means anyone can run a copy of your script on their server to help build your botnet.
 
-It is highly recommended that you use a [random spoofing ident protocol daemon](https://github.com/acidvegas/random/blob/master/irc/identd.py)
+It is highly recommended that you use a [random spoofing ident protocol daemon](https://github.com/internet-relay-chat/archive/blob/master/identd.py)
 
 ## Commands
 | Command                | Description                                                                                                |
