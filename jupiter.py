@@ -3,13 +3,29 @@
 
 ''' A M P L I S S I M U S   M A C H I N A '''
 
+'''
+03:12:44 | [!] - Unexpected error occured on 'irc.prison.net' server. (Exception('Banned'))
+03:12:53 | [!] - Unexpected error occured on 'efnet.port80.se' server. (Exception('Banned'))
+03:06:07 | [!] - Unexpected error occured on 'efnet.deic.eu' server. (IncompleteReadError('0 bytes read on a total of undefined expected bytes'))
+03:05:56 | [!] - Unexpected error occured on 'irc.colosolutions.net' server. (Exception('Banned'))
+03:05:17 | [!] - Failed to connect to 'irc.choopa.net' IRC server on port 9000 using SSL/TLS (SSLError(1, '[SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1123)'))
+
+'''
+
 import asyncio
 import copy
+import os
 import random
 import re
 import socket
 import ssl
+import sys
 import time
+
+try:
+	import aiosocks
+except ImportError:
+	raise SystemExit('Error: aiosocks module not installed! (pip install aiosocks)')
 
 # Connection
 servers = (
@@ -18,6 +34,7 @@ servers = (
    #{'server':'efnet.portlane.se',     'ssl':6697, 'ipv6': True}, # Removed (efnet.portlane.se is an alias for irc.efnet.org)
 	{'server':'irc.choopa.net',        'ssl':9000, 'ipv6': True},
 	{'server':'irc.colosolutions.net', 'ssl':None, 'ipv6':False}, # error: SSL handshake failed: unsafe legacy renegotiation disabled
+   #{'server':'irc.deft.com',          'ssl':None, 'ipv6':False}, # Removed (irc.deft.com points to irc.servercentral.net)
 	{'server':'irc.du.se',             'ssl':None, 'ipv6':False}, # error: handshake failed: dh key too small
    #{'server':'irc.efnet.fr',          'ssl':6697, 'ipv6': True}, # Removed (irc.efnet.fr is an alias for irc.efnet.nl)
 	{'server':'irc.efnet.nl',          'ssl':6697, 'ipv6': True},
@@ -36,6 +53,7 @@ key      = 'xChangeMex'
 
 # Settings
 admin           = 'nick!user@host' # Can use wildcards (Must be in nick!user@host format)
+connect_delay   = True 		       # Random delay between 5-15 minutes before connecting a clone to a server
 concurrency     = 3                # Number of clones to load per server
 id              = 'TEST'           # Unique ID so you can tell which bots belong what server
 
@@ -106,8 +124,10 @@ def unicode():
 	return msg
 
 class clone():
-	def __init__(self, server, use_ipv6=False):
+	def __init__(self, server, vhost=None, proxy=None, use_ipv6=False):
 		self.server     = server
+		self.vhost      = vhost
+		self.proxy      = proxy
 		self.use_ipv6   = use_ipv6
 		self.ssl_status = True
 		self.nickname   = rndnick()
@@ -120,16 +140,29 @@ class clone():
 		self.writer     = None
 
 	async def connect(self):
-		await asyncio.sleep(random.randint(300,900))
+		if connect_delay:
+			await asyncio.sleep(random.randint(300,900))
 		while True:
-			try:
+			if self.proxy:
+				options = {
+					'proxy'      : aiosocks.Socks5Addr(self.proxy.split(':')[0], int(self.proxy.split(':')[1])),
+					'proxy_auth' : None,
+					'dst'        : (self.server['server'], self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667),
+					'limit'      : 1024,
+					'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
+					'family'     : 2
+				}
+				self.reader, self.writer = await asyncio.wait_for(aiosocks.open_connection(**options), 15)
+			else:
 				options = {
 					'host'       : self.server['server'],
 					'port'       : self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667,
 					'limit'      : 1024,
 					'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
-					'family'     : socket.AF_INET6 if self.use_ipv6 else socket.AF_INET
+					'family'     : socket.AF_INET6 if self.use_ipv6 else socket.AF_INET,
+					'local_addr' : (self.vhost, random.randint(5000,60000)) if self.vhost else None
 				}
+			try:
 				self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(**options), 15)
 				await self.raw(f'USER {rndnick()} 0 * :{rndnick()}')
 				await self.raw('NICK ' + self.nickname)
@@ -280,8 +313,8 @@ class clone():
 					nick = args[2]
 					target_nick = args[3]
 					if nick == '*':
-						self.nickname = random_nick()
-						self.nick(self.nickname)
+						self.nickname = rndnick()
+						await self.nick(self.nickname)
 				elif args[1] == '465': # ERR_YOUREBANNEDCREEP
 					error('K-Lined', self.server)
 				elif args[1] in ('716','717'): # RPL_TARGNOTIFY
@@ -323,7 +356,7 @@ class clone():
 							await self.monitor('C')
 							self.monlist = list()
 					elif nick in self.monlist:
-						self.nick(nick)
+						await self.nick(nick)
 					elif nick in bots:
 						botcontrol('-', nick)
 						botcontrol('+', new_nick)
@@ -386,13 +419,25 @@ class clone():
 	async def sendmsg(self, target, msg):
 		await self.raw(f'PRIVMSG {target} :{msg}')
 
-async def main():
+async def main(option=None, input_data=None):
 	jobs = list()
 	for i in range(concurrency):
 		for server in servers:
-			jobs.append(asyncio.ensure_future(clone(server).connect()))
-			if ipv6 and server['ipv6']:
-				jobs.append(asyncio.ensure_future(clone(server, True).connect()))
+			if option and input_data:
+				for item in input_data:
+					if option == '-p':
+						jobs.append(asyncio.ensure_future(clone(server, proxy=item).connect()))
+					else:
+						if ':' in item:
+							jobs.append(asyncio.ensure_future(clone(server, vhost=item, use_ipv6=True).connect()))
+						else:
+							jobs.append(asyncio.ensure_future(clone(server, vhost=item).connect()))
+					if ipv6 and server['ipv6']:
+						jobs.append(asyncio.ensure_future(clone(server, use_ipv6=True).connect()))
+			else:
+				jobs.append(asyncio.ensure_future(clone(server).connect()))
+				if ipv6 and server['ipv6']:
+					jobs.append(asyncio.ensure_future(clone(server, True).connect()))
 	await asyncio.gather(*jobs)
 
 # Main
@@ -403,5 +448,15 @@ print('#{:^54}#'.format('Developed by acidvegas in Python'))
 print('#{:^54}#'.format('https://git.acid.vegas/jupiter'))
 print('#{:^54}#'.format(''))
 print('#'*56)
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+if len(sys.argv) == 3:
+	if (option := sys.argv[1]) in ('-p','-v'):
+		input_file = sys.argv[2]
+		if os.path.exists(input_file):
+			input_data = open(input_file, 'r').read().split('\n')
+			loop = asyncio.get_event_loop()
+			loop.run_until_complete(main(option, input_data))
+		else:
+			raise SystemExit(f'Error: {input_file} does not exist!')
+else:
+	loop = asyncio.get_event_loop()
+	loop.run_until_complete(main())
