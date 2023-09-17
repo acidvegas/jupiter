@@ -158,8 +158,8 @@ class clone():
 						'local_addr' : (self.vhost, random.randint(5000,60000)) if self.vhost else None
 					}
 					self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(**options), 15)
-					await self.raw(f'USER {rndnick()} 0 * :{rndnick()}')
-					await self.raw('NICK ' + self.nickname)
+				await self.raw(f'USER {rndnick()} 0 * :{rndnick()}')
+				await self.raw('NICK ' + self.nickname)
 			except Exception as ex:
 				v6 = 'using IPv6 ' if self.use_ipv6 else ''
 				if self.ssl_status and self.server['ssl']:
