@@ -147,7 +147,7 @@ class clone():
 				if self.proxy:
 					options = {
 						'proxy'      : aiosocks.Socks5Addr(self.proxy.split(':')[0], int(self.proxy.split(':')[1])),
-						'proxy_auth' : None,
+						'proxy_auth' : None, # Todo: Auth support using aiosocks.Socks5Auth('login', 'pwd') here
 						'dst'        : (self.server['server'], self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667),
 						'limit'      : 1024,
 						'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
