@@ -46,7 +46,6 @@ key      = 'xChangeMex'
 # Settings
 admin           = 'nick!user@host' # Can use wildcards (Must be in nick!user@host format)
 connect_delay   = True 		       # Random delay between 5-15 minutes before connecting a clone to a server
-concurrency     = 3                # Number of clones to load per server
 id              = 'TEST'           # Unique ID so you can tell which bots belong what server
 
 # Formatting Control Characters / Color Codes
@@ -413,7 +412,7 @@ class clone():
 
 async def main(input_data=None):
 	jobs = list()
-	for i in range(concurrency):
+	for i in range(args.clones):
 		for server in servers:
 			if input_data:
 				for item in input_data:
@@ -441,19 +440,17 @@ if __name__ == '__main__':
 	print('#{:^54}#'.format(''))
 	print('#'*56)
 	parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-	parser.add_argument('-p', '--proxies', type=str, default='proxies.txt', help="Path to file containing proxies. Default is proxies.txt.")
-	parser.add_argument('-v', '--vhosts',  type=str, default='vhosts.txt',  help="Path to file containing vhosts. Default is vhosts.txt.")
-	parser.add_argument('-c', '--clones',  type=int, default=3,             help="Number to define the concurrency to use. Default is 3.")
+	parser.add_argument('-p', '--proxies', type=str, help="Path to file containing proxies.")
+	parser.add_argument('-v', '--vhosts',  type=str, help="Path to file containing vhosts.")
+	parser.add_argument('-c', '--clones',  type=int, default=3, help="Number to define the concurrency to use. Default is 3.")
 	args = parser.parse_args()
-	if args.clones:
-		concurrency = args.clones
-	loop = asyncio.get_event_loop()
-	input_file = args.proxies if args.proxies else args.vhosts if args.vhosts else None
-	if input_file:
+	if (input_file := args.proxies if args.proxies else args.vhosts if args.vhosts else None):
 		if os.path.exists(input_file):
 			data = open(input_file, 'r').read().split('\n')
-			loop.run_until_complete(main(data))
+			print('Loaded {0:,} items from {1}'.format(len(data), input_file))
+			asyncio.run(main(data))
 		else:
 			raise SystemExit(f'Error: {input_file} does not exist!')
 	else:
-		loop.run_until_complete(main())
+		print('Loading raw clones...')
+		asyncio.run(main())
