@@ -72,7 +72,6 @@ This is an accurate map of the [EFNet](http://efnet.org) IRC network as of *05/1
 - Possibly use only one connection per-server & create clones on `multiple` command / destroy clones on `destroy` command. *(No point in having clones when we arent doing anything with them)*
 - Compile a list of common CTCP VERSION replies to improve the random CTCP VERSION responses
 - WHO channel and parse unique hosts to +eI usage
-- Polish the vhost/proxy support code *(was thrown together for chrono)* and add documentation about it.
 
 ___
 

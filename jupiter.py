@@ -3,15 +3,7 @@
 
 ''' A M P L I S S I M U S   M A C H I N A '''
 
-'''
-03:12:44 | [!] - Unexpected error occured on 'irc.prison.net' server. (Exception('Banned'))
-03:12:53 | [!] - Unexpected error occured on 'efnet.port80.se' server. (Exception('Banned'))
-03:06:07 | [!] - Unexpected error occured on 'efnet.deic.eu' server. (IncompleteReadError('0 bytes read on a total of undefined expected bytes'))
-03:05:56 | [!] - Unexpected error occured on 'irc.colosolutions.net' server. (Exception('Banned'))
-03:05:17 | [!] - Failed to connect to 'irc.choopa.net' IRC server on port 9000 using SSL/TLS (SSLError(1, '[SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1123)'))
-
-'''
-
+import argparse
 import asyncio
 import copy
 import os
@@ -106,10 +98,11 @@ def is_admin(ident):
 	return re.compile(admin.replace('*','.*')).search(ident)
 
 def rndnick():
-	prefix = random.choice(['st','sn','cr','pl','pr','fr','fl','qu','br','gr','sh','sk','tr','kl','wr','bl']+list('bcdfgklmnprstvwz'))
+	prefix = random.choice(['sl','st','sn','cr','pl','pr','fr','fl','qu','br','gr','sh','sk','tr','kl','wr','bl']+list('bcdfgklmnprstvwz'))
 	midfix = random.choice(('aeiou'))+random.choice(('aeiou'))+random.choice(('bcdfgklmnprstvwz'))
-	suffix = random.choice(['ed','est','er','le','ly','y','ies','iest','ian','ion','est','ing','led','inger']+list('abcdfgklmnprstvwz'))
-	return prefix+midfix+suffix
+	suffix = random.choice(['ed','est','er','ered','le','ly','y','ies','iest','ian','ion','est','ing','led','inger']+list('abcdfgklmnprstvwz'))
+	endpix = str(random.randint(1960,2025)) if random.choice([True,False]) else str(random.randint(1,99)) if random.choice([True,False]) else ''
+	return prefix+midfix+suffix+endpix
 
 def ssl_ctx():
 	ctx = ssl.create_default_context()
@@ -145,9 +138,11 @@ class clone():
 				if connect_delay:
 					await asyncio.sleep(random.randint(300,900))
 				if self.proxy:
+					auth = self.proxy.split('@')[0].split(':') if '@' in self.proxy else None
+					proxy_ip, proxy_port = self.proxy.split('@')[1].split(':') if '@' in self.proxy else self.proxy.split(':')
 					options = {
-						'proxy'      : aiosocks.Socks5Addr(self.proxy.split(':')[0], int(self.proxy.split(':')[1])),
-						'proxy_auth' : None, # Todo: Auth support using aiosocks.Socks5Auth('login', 'pwd') here
+						'proxy'      : aiosocks.Socks5Addr(proxy_ip, proxy_port),
+						'proxy_auth' : aiosocks.Socks5Auth(*auth) if auth else None,
 						'dst'        : (self.server['server'], self.server['ssl'] if self.server['ssl'] and self.ssl_status else 6667),
 						'limit'      : 1024,
 						'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
@@ -279,12 +274,6 @@ class clone():
 					await self.raw(f'KICK {chan} {nick} {unicode()}')
 					await self.mode(chan, f'+b {nick}!*@*')
 					await self.sendmsg(chan, f'{unicode()} oh god what is happening {unicode()}')
-			#await self.mode(chan, '+eeee ')                     # Set +b exemption on bots
-			#await self.mode(chan, '+IIII ')                     # Set +I exemption on bots
-			#await self.mode(chan, '+imk ' + random.randint(1000,9999)
-			#await self.raw('KICK {chan} {nick} {unicode()}')    # Kick everyone using unifuck as the kick reason
-			#await self.mode(chan, '+bbbb ')                     # Ban every user
-			#await self.mode(chan, '+bbb *!*@* *!*@*.* *!*@*:*') # Ban everyone
 
 	async def listen(self):
 		while not self.reader.at_eof():
@@ -422,44 +411,49 @@ class clone():
 	async def sendmsg(self, target, msg):
 		await self.raw(f'PRIVMSG {target} :{msg}')
 
-async def main(option=None, input_data=None):
+async def main(input_data=None):
 	jobs = list()
 	for i in range(concurrency):
 		for server in servers:
-			if option and input_data:
+			if input_data:
 				for item in input_data:
-					if option == '-p':
+					if args.proxies:
 						jobs.append(asyncio.ensure_future(clone(server, proxy=item).connect()))
-					else:
+					elif args.vhosts:
 						if ':' in item:
-							jobs.append(asyncio.ensure_future(clone(server, vhost=item, use_ipv6=True).connect()))
+							if ipv6 and server['ipv6']:
+								jobs.append(asyncio.ensure_future(clone(server, vhost=item, use_ipv6=True).connect()))
 						else:
 							jobs.append(asyncio.ensure_future(clone(server, vhost=item).connect()))
-					if ipv6 and server['ipv6']:
-						jobs.append(asyncio.ensure_future(clone(server, use_ipv6=True).connect()))
 			else:
 				jobs.append(asyncio.ensure_future(clone(server).connect()))
 				if ipv6 and server['ipv6']:
-					jobs.append(asyncio.ensure_future(clone(server, True).connect()))
+					jobs.append(asyncio.ensure_future(clone(server, use_ipv6=True).connect()))
 	await asyncio.gather(*jobs)
 
 # Main
-print('#'*56)
-print('#{:^54}#'.format(''))
-print('#{:^54}#'.format('Jupiter IRC botnet for EFnet'))
-print('#{:^54}#'.format('Developed by acidvegas in Python'))
-print('#{:^54}#'.format('https://git.acid.vegas/jupiter'))
-print('#{:^54}#'.format(''))
-print('#'*56)
-if len(sys.argv) == 3:
-	if (option := sys.argv[1]) in ('-p','-v'):
-		input_file = sys.argv[2]
+if __name__ == '__main__':
+	print('#'*56)
+	print('#{:^54}#'.format(''))
+	print('#{:^54}#'.format('Jupiter IRC botnet for EFnet'))
+	print('#{:^54}#'.format('Developed by acidvegas in Python'))
+	print('#{:^54}#'.format('https://git.acid.vegas/jupiter'))
+	print('#{:^54}#'.format(''))
+	print('#'*56)
+	parser = argparse.ArgumentParser(usage='%(prog)s [options]')
+	parser.add_argument('-p', '--proxies', type=str, default='proxies.txt', help="Path to file containing proxies. Default is proxies.txt.")
+	parser.add_argument('-v', '--vhosts',  type=str, default='vhosts.txt',  help="Path to file containing vhosts. Default is vhosts.txt.")
+	parser.add_argument('-c', '--clones',  type=int, default=3,             help="Number to define the concurrency to use. Default is 3.")
+	args = parser.parse_args()
+	if args.clones:
+		concurrency = args.clones
+	loop = asyncio.get_event_loop()
+	input_file = args.proxies if args.proxies else args.vhosts if args.vhosts else None
+	if input_file:
 		if os.path.exists(input_file):
-			input_data = open(input_file, 'r').read().split('\n')
-			loop = asyncio.get_event_loop()
-			loop.run_until_complete(main(option, input_data))
+			data = open(input_file, 'r').read().split('\n')
+			loop.run_until_complete(main(data))
 		else:
 			raise SystemExit(f'Error: {input_file} does not exist!')
-else:
-	loop = asyncio.get_event_loop()
-	loop.run_until_complete(main())
+	else:
+		loop.run_until_complete(main())
