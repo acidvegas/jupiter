@@ -11,7 +11,6 @@ import random
 import re
 import socket
 import ssl
-import sys
 import time
 
 try:
@@ -25,7 +24,7 @@ servers = (
 	{'server':'efnet.port80.se',       'ssl':6697, 'ipv6': True},
    #{'server':'efnet.portlane.se',     'ssl':6697, 'ipv6': True}, # Removed (efnet.portlane.se is an alias for irc.efnet.org)
 	{'server':'irc.choopa.net',        'ssl':9000, 'ipv6': True},
-	{'server':'irc.colosolutions.net', 'ssl':None, 'ipv6':False}, # error: SSL handshake failed: unsafe legacy renegotiation disabled
+#	{'server':'irc.colosolutions.net', 'ssl':None, 'ipv6':False}, # error: SSL handshake failed: unsafe legacy renegotiation disabled
    #{'server':'irc.deft.com',          'ssl':None, 'ipv6':False}, # Removed (irc.deft.com points to irc.servercentral.net)
 	{'server':'irc.du.se',             'ssl':None, 'ipv6':False}, # error: handshake failed: dh key too small
    #{'server':'irc.efnet.fr',          'ssl':6697, 'ipv6': True}, # Removed (irc.efnet.fr is an alias for irc.efnet.nl)
@@ -33,19 +32,19 @@ servers = (
 	{'server':'irc.homelien.no',       'ssl':6697, 'ipv6': True},
 	{'server':'irc.mzima.net',         'ssl':6697, 'ipv6': True},
    #{'server':'irc.nordunet.se',       'ssl':6697, 'ipv6': True}, # Removed (irc.nordunet.se is an alias for irc.swepipe.se)
-	{'server':'irc.prison.net',        'ssl':None, 'ipv6':False},
+#	{'server':'irc.prison.net',        'ssl':None, 'ipv6':False},
 	{'server':'irc.swepipe.se',        'ssl':6697, 'ipv6': True},
 	{'server':'irc.underworld.no',     'ssl':6697, 'ipv6': True},
 	{'server':'irc.servercentral.net', 'ssl':9999, 'ipv6':False}
 )
-ipv6     = True # Set to False if your system does not have an IPv6 address
-channel  = '#jupiter'
-backup   = '#jupiter-' + str(random.randint(1000,9999)) # Use /list -re #jupiter-* on weechat to find your bots
+ipv6     = False #True # Set to False if your system does not have an IPv6 address
+channel  = '#jupiter2'
+backup   = '#jupiter2-' + str(random.randint(1000,9999)) # Use /list -re #jupiter-* on weechat to find your bots
 key      = 'xChangeMex'
 
 # Settings
-admin           = 'nick!user@host' # Can use wildcards (Must be in nick!user@host format)
-connect_delay   = True 		       # Random delay between 5-15 minutes before connecting a clone to a server
+admin           = 'acidvegas!*@*' #'nick!user@host' # Can use wildcards (Must be in nick!user@host format)
+connect_delay   = False #True 		       # Random delay between 5-15 minutes before connecting a clone to a server
 id              = 'TEST'           # Unique ID so you can tell which bots belong what server
 
 # Formatting Control Characters / Color Codes
@@ -135,8 +134,9 @@ class clone():
 		while True:
 			try:
 				if connect_delay:
-					await asyncio.sleep(random.randint(300,900))
+					await asyncio.sleep(random.randint(30,120))
 				if self.proxy:
+					self.ssl_status = False
 					auth = self.proxy.split('@')[0].split(':') if '@' in self.proxy else None
 					proxy_ip, proxy_port = self.proxy.split('@')[1].split(':') if '@' in self.proxy else self.proxy.split(':')
 					options = {
@@ -147,7 +147,7 @@ class clone():
 						'ssl'        : ssl_ctx() if self.server['ssl'] and self.ssl_status else None,
 						'family'     : 2
 					}
-					self.reader, self.writer = await asyncio.wait_for(aiosocks.open_connection(**options), 15)
+					self.reader, self.writer = await asyncio.wait_for(aiosocks.open_connection(**options), 30)
 				else:
 					options = {
 						'host'       : self.server['server'],
@@ -157,13 +157,14 @@ class clone():
 						'family'     : socket.AF_INET6 if self.use_ipv6 else socket.AF_INET,
 						'local_addr' : (self.vhost, random.randint(5000,60000)) if self.vhost else None
 					}
-					self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(**options), 15)
+					self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(**options), 30)
 				await self.raw(f'USER {rndnick()} 0 * :{rndnick()}')
 				await self.raw('NICK ' + self.nickname)
 			except Exception as ex:
 				v6 = 'using IPv6 ' if self.use_ipv6 else ''
 				if self.ssl_status and self.server['ssl']:
 					self.ssl_status = False
+					print(options)
 					error('Failed to connect to \'{0}\' IRC server {1}on port {2} using SSL/TLS'.format(self.server['server'], v6, str(self.server['ssl'])), ex)
 				else:
 					if not self.ssl_status and self.server['ssl']:
@@ -172,7 +173,7 @@ class clone():
 			else:
 				await self.listen()
 			finally:
-				await asyncio.sleep(86400+random.randint(1800,3600))
+				await asyncio.sleep(10) #await asyncio.sleep(86400+random.randint(1800,3600))
 
 	async def event_message(self, ident, nick, target, msg):
 		if target == self.relay:
@@ -281,6 +282,7 @@ class clone():
 				line = data.decode('utf-8').strip()
 				args = line.split()
 				if line.startswith('ERROR :Closing Link:'):
+					print(line)
 					raise Exception('Banned')
 				elif line.startswith('ERROR :Reconnecting too fast'):
 					raise Exception('Throttled')
@@ -424,6 +426,7 @@ async def main(input_data=None):
 								jobs.append(asyncio.ensure_future(clone(server, vhost=item, use_ipv6=True).connect()))
 						else:
 							jobs.append(asyncio.ensure_future(clone(server, vhost=item).connect()))
+			
 			else:
 				jobs.append(asyncio.ensure_future(clone(server).connect()))
 				if ipv6 and server['ipv6']:
@@ -444,11 +447,16 @@ if __name__ == '__main__':
 	parser.add_argument('-v', '--vhosts',  type=str, help="Path to file containing vhosts.")
 	parser.add_argument('-c', '--clones',  type=int, default=3, help="Number to define the concurrency to use. Default is 3.")
 	args = parser.parse_args()
-	if (input_file := args.proxies if args.proxies else args.vhosts if args.vhosts else None):
+	if args.proxies and args.vhosts:
+		raise SystemExit('Cannot use both proxies & vhosts at the same time!')
+	elif (input_file := args.proxies if args.proxies else args.vhosts if args.vhosts else None):
 		if os.path.exists(input_file):
-			data = open(input_file, 'r').read().split('\n')
-			print('Loaded {0:,} items from {1}'.format(len(data), input_file))
-			asyncio.run(main(data))
+			data = set([item.rstrip() for item in open(input_file, 'r').read().splitlines() if item])
+			if data:
+				print('Loaded {0:,} items from {1}'.format(len(data), input_file))
+				asyncio.run(main(data))
+			else:
+				raise SystemExit(f'Error: {input_file} is empty!')
 		else:
 			raise SystemExit(f'Error: {input_file} does not exist!')
 	else:

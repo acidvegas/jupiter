@@ -16,7 +16,19 @@ The bot is designed to be very minimal, secure, & trustless by nature. This mean
 
 It is highly recommended that you use a [random spoofing ident protocol daemon](https://github.com/internet-relay-chat/archive/blob/master/identd.py)
 
-## Commands
+## Requirements
+- [Python](https://python.org/)
+  - [aiosocks](https:///pypi.org/aiosocks) *(`pip install aiosocks`)*
+
+## Usage
+###### CLI Options
+| Argument          | Description                              |
+| ----------------- | ---------------------------------------- |
+| `-p`, `--proxies` | set input file containing proxies to use |
+| `-v`, `--vhosts`  | set input file containin vhosts to use   |
+| `-c`, `--clones`  | set the concurrency limit per-server     |
+
+###### Commands
 | Command                | Description                                                                                                |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `5000 <chan>`          | Emulates SuperNETs #5000 channel *(Join #5000 on irc.supernets.org for help using this command)*           |
@@ -75,5 +87,4 @@ This is an accurate map of the [EFNet](http://efnet.org) IRC network as of *05/1
 
 ___
 
-###### Mirrors
-[acid.vegas](https://git.acid.vegas/jupiter) • [GitHub](https://github.com/acidvegas/jupiter) • [GitLab](https://gitlab.com/acidvegas/jupiter) • [SuperNETs](https://git.supernets.org/acidvegas/jupiter)
+###### Mirrors for this repository: [acid.vegas](https://git.acid.vegas/jupiter) • [SuperNETs](https://git.supernets.org/acidvegas/jupiter) • [GitHub](https://github.com/acidvegas/jupiter) • [GitLab](https://gitlab.com/acidvegas/jupiter) • [Codeberg](https://codeberg.org/acidvegas/jupiter)
